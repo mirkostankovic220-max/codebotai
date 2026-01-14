@@ -11,9 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 export const CodeChatInterface = () => {
   const [input, setInput] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const [isIdentified, setIsIdentified] = useState(false);
-  const [awaitingIdentification, setAwaitingIdentification] = useState(false);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -33,15 +30,6 @@ export const CodeChatInterface = () => {
     }
   }, [messages]);
 
-  const isCodeRequest = (message: string) => {
-    const codeKeywords = [
-      "make", "create", "build", "generate", "write", "code", "implement",
-      "develop", "design", "add", "fix", "update", "modify", "change"
-    ];
-    const lowerMessage = message.toLowerCase();
-    return codeKeywords.some(keyword => lowerMessage.includes(keyword));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const message = input.trim();
@@ -54,45 +42,9 @@ export const CodeChatInterface = () => {
       return;
     }
 
-    // Check if awaiting identification response
-    if (awaitingIdentification) {
-      if (message.toLowerCase() === "mirko") {
-        setIsIdentified(true);
-        setAwaitingIdentification(false);
-        toast({
-          title: "Access Granted",
-          description: "Welcome, Mirko! Processing your request...",
-        });
-        if (pendingMessage) {
-          streamChat(pendingMessage);
-          setPendingMessage(null);
-        }
-      } else {
-        toast({
-          title: "Access Denied",
-          description: "Sorry, you don't have permission. Try again.",
-          variant: "destructive",
-        });
-        setAwaitingIdentification(false);
-        setPendingMessage(null);
-      }
-      setInput("");
-      return;
-    }
-
-    // Check if this is a code request that needs identification
-    if (isCodeRequest(message) && !isIdentified) {
-      setPendingMessage(message);
-      setAwaitingIdentification(true);
-      setInput("");
-      return;
-    }
-
-    // Send message (either already identified or not a code request)
     streamChat(message);
     setInput("");
   };
-
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -162,17 +114,6 @@ export const CodeChatInterface = () => {
         </div>
       </ScrollArea>
 
-      {/* Identification Prompt */}
-      {awaitingIdentification && (
-        <div className="px-4 pb-2 max-w-4xl mx-auto w-full">
-          <div className="p-4 bg-muted rounded-lg border border-border">
-            <p className="font-medium text-sm mb-2">🔐 Identification Required</p>
-            <p className="text-xs text-muted-foreground">
-              Please type your name in the chat to continue with this code request.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Input */}
       <div className="border-t border-border p-4 bg-card">
@@ -184,12 +125,12 @@ export const CodeChatInterface = () => {
               onKeyDown={handleKeyDown}
               placeholder="Ask me anything about code..."
               className="min-h-[56px] max-h-32 resize-none pr-12"
-              disabled={isLoading || !!pendingMessage}
+              disabled={isLoading}
             />
             <Button
               type="submit"
               size="icon"
-              disabled={!input.trim() || isLoading || !!pendingMessage}
+              disabled={!input.trim() || isLoading}
               className="absolute right-2 bottom-2 h-8 w-8"
             >
               <Send className="h-4 w-4" />
