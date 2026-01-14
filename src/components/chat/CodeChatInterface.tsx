@@ -5,13 +5,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./ChatMessage";
 import { ChatHistory } from "./ChatHistory";
-import { NameVerification } from "./NameVerification";
 import { useCodeChat } from "@/hooks/useCodeChat";
 import { useToast } from "@/hooks/use-toast";
 
 export const CodeChatInterface = () => {
   const [input, setInput] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [isIdentified, setIsIdentified] = useState(false);
+  const [awaitingIdentification, setAwaitingIdentification] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -53,36 +54,45 @@ export const CodeChatInterface = () => {
       return;
     }
 
-    // Check if this is a code request that needs verification
-    if (isCodeRequest(message)) {
-      setPendingMessage(message);
+    // Check if awaiting identification response
+    if (awaitingIdentification) {
+      if (message.toLowerCase() === "mirko") {
+        setIsIdentified(true);
+        setAwaitingIdentification(false);
+        toast({
+          title: "Access Granted",
+          description: "Welcome, Mirko! Processing your request...",
+        });
+        if (pendingMessage) {
+          streamChat(pendingMessage);
+          setPendingMessage(null);
+        }
+      } else {
+        toast({
+          title: "Access Denied",
+          description: "Sorry, you don't have permission. Try again.",
+          variant: "destructive",
+        });
+        setAwaitingIdentification(false);
+        setPendingMessage(null);
+      }
       setInput("");
       return;
     }
 
-    // Regular message, send directly
+    // Check if this is a code request that needs identification
+    if (isCodeRequest(message) && !isIdentified) {
+      setPendingMessage(message);
+      setAwaitingIdentification(true);
+      setInput("");
+      return;
+    }
+
+    // Send message (either already identified or not a code request)
     streamChat(message);
     setInput("");
   };
 
-  const handleVerification = (name: string) => {
-    if (name.toLowerCase() === "mirko") {
-      if (pendingMessage) {
-        streamChat(pendingMessage);
-      }
-      toast({
-        title: "Access Granted",
-        description: "Welcome, Mirko! Processing your request...",
-      });
-    } else {
-      toast({
-        title: "Access Denied",
-        description: "Sorry, you don't have permission to make code requests.",
-        variant: "destructive",
-      });
-    }
-    setPendingMessage(null);
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -105,15 +115,6 @@ export const CodeChatInterface = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowHistory(true)}
-            className="gap-2"
-          >
-            <History className="h-4 w-4" />
-            <span className="hidden sm:inline">History</span>
-          </Button>
           <Button
             variant="default"
             size="sm"
@@ -161,10 +162,15 @@ export const CodeChatInterface = () => {
         </div>
       </ScrollArea>
 
-      {/* Name Verification */}
-      {pendingMessage && (
+      {/* Identification Prompt */}
+      {awaitingIdentification && (
         <div className="px-4 pb-2 max-w-4xl mx-auto w-full">
-          <NameVerification onVerify={handleVerification} pendingMessage={pendingMessage} />
+          <div className="p-4 bg-muted rounded-lg border border-border">
+            <p className="font-medium text-sm mb-2">🔐 Identification Required</p>
+            <p className="text-xs text-muted-foreground">
+              Please type your name in the chat to continue with this code request.
+            </p>
+          </div>
         </div>
       )}
 
