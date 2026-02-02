@@ -68,6 +68,15 @@ export const CodeChatInterface = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHistory(true)}
+            className="gap-2"
+          >
+            <History className="h-4 w-4" />
+            <span className="hidden sm:inline">History</span>
+          </Button>
+          <Button
             variant="default"
             size="sm"
             onClick={startNewChat}
