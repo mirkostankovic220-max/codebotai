@@ -18,18 +18,18 @@ export const CodeBlock = ({ code, language }: CodeBlockProps) => {
 
   return (
     <div className="relative my-4 rounded-lg overflow-hidden bg-slate-900 border border-slate-700">
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800 border-b border-slate-700">
-        <span className="text-xs font-mono text-slate-400 uppercase truncate max-w-[50%]">{language || "code"}</span>
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 border-b border-slate-700">
+        <span className="text-xs font-mono text-slate-400 uppercase">{language || "code"}</span>
         <Button
           variant="ghost"
           size="sm"
           onClick={handleCopy}
-          className="h-7 px-2 text-slate-400 hover:text-white hover:bg-slate-700 flex-shrink-0"
+          className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
         >
           {copied ? (
-            <Check className="h-4 w-4" />
+            <Check className="h-3.5 w-3.5" />
           ) : (
-            <Copy className="h-4 w-4" />
+            <Copy className="h-3.5 w-3.5" />
           )}
         </Button>
       </div>
