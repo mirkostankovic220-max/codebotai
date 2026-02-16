@@ -1,7 +1,9 @@
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-type Message = { role: "user" | "assistant"; content: string };
+type MessageContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
+
+type Message = { role: "user" | "assistant"; content: MessageContent };
 
 interface ChatSession {
   id: string;
@@ -29,7 +31,12 @@ export const useCodeChat = () => {
     if (currentMessages.length === 0) return;
     
     const firstUserMessage = currentMessages.find(m => m.role === "user");
-    const title = firstUserMessage?.content.slice(0, 50) + (firstUserMessage?.content.length! > 50 ? "..." : "") || "New Chat";
+    const contentText = firstUserMessage ? (
+      typeof firstUserMessage.content === "string" 
+        ? firstUserMessage.content 
+        : firstUserMessage.content.find(c => c.type === "text")?.text || "Image chat"
+    ) : "New Chat";
+    const title = contentText.slice(0, 50) + (contentText.length > 50 ? "..." : "");
     
     const newSession: ChatSession = {
       id: crypto.randomUUID(),
@@ -39,14 +46,24 @@ export const useCodeChat = () => {
     };
     
     setSessions(prev => {
-      const updated = [newSession, ...prev].slice(0, 50); // Keep last 50 sessions
+      const updated = [newSession, ...prev].slice(0, 50);
       localStorage.setItem("code-chat-sessions", JSON.stringify(updated));
       return updated;
     });
   }, []);
 
-  const streamChat = async (userMessage: string) => {
-    const userMsg: Message = { role: "user", content: userMessage };
+  const streamChat = async (userMessage: string, imageBase64?: string) => {
+    let content: MessageContent;
+    if (imageBase64) {
+      content = [
+        { type: "text", text: userMessage || "Analyze this image in detail." },
+        { type: "image_url", image_url: { url: imageBase64 } },
+      ];
+    } else {
+      content = userMessage;
+    }
+
+    const userMsg: Message = { role: "user", content };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setIsLoading(true);
