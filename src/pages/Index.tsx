@@ -1,7 +1,7 @@
-import { CodeChatInterface } from "@/components/chat/CodeChatInterface";
+import { OrchestratorDashboard } from "@/components/orchestrator/OrchestratorDashboard";
 
 const Index = () => {
-  return <CodeChatInterface />;
+  return <OrchestratorDashboard />;
 };
 
 export default Index;
