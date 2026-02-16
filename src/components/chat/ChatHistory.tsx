@@ -2,11 +2,13 @@ import { X, MessageSquare, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+type MessageContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
+
 interface ChatSession {
   id: string;
   title: string;
   timestamp: Date;
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  messages: Array<{ role: "user" | "assistant"; content: MessageContent }>;
 }
 
 interface ChatHistoryProps {

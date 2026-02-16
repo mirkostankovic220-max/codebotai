@@ -18,18 +18,25 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert coding assistant. You help users write, debug, and understand code.
+    // Check if any message contains an image
+    const hasImage = messages.some((m: any) => 
+      Array.isArray(m.content) && m.content.some((c: any) => c.type === "image_url")
+    );
+
+    const systemPrompt = hasImage
+      ? `You are an expert coding assistant with image analysis capabilities. When a user sends an image:
+- Analyze the image thoroughly and describe what you see
+- If it's code/UI screenshot, identify the technologies, patterns, and suggest improvements
+- If it's a design mockup, describe the layout and suggest how to implement it
+- If it's an error/bug screenshot, identify the issue and provide a fix
+- If it's a diagram or architecture, explain the structure
+- Always relate your analysis back to coding and development when possible
+
+When providing code:
+- Always use proper code blocks with language identifiers
+- Explain your code clearly
+- Provide best practices and optimizations`
+      : `You are an expert coding assistant. You help users write, debug, and understand code.
 
 When providing code:
 - Always use proper code blocks with language identifiers (e.g., \`\`\`javascript, \`\`\`python, \`\`\`html, etc.)
@@ -44,8 +51,18 @@ You specialize in:
 - DevOps and scripting
 - Algorithm design and optimization
 
-Always format code properly for easy copying.`
-          },
+Always format code properly for easy copying.`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
         stream: true,

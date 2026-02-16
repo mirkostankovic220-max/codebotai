@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Plus, History, Code2, Loader2 } from "lucide-react";
+import { Send, Image, History, Code2, Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,7 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 export const CodeChatInterface = () => {
   const [input, setInput] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const {
@@ -30,20 +32,40 @@ export const CodeChatInterface = () => {
     }
   }, [messages]);
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image file.", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Image must be under 10MB.", variant: "destructive" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const message = input.trim();
-    if (!message || isLoading) return;
+    if ((!message && !imagePreview) || isLoading) return;
 
-    // Check if typing "Identification" to show history
     if (message.toLowerCase() === "identification") {
       setShowHistory(true);
       setInput("");
       return;
     }
 
-    streamChat(message);
+    streamChat(message || "Analyze this image.", imagePreview || undefined);
     setInput("");
+    setImagePreview(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -51,6 +73,23 @@ export const CodeChatInterface = () => {
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  const getMessageText = (content: any): string => {
+    if (typeof content === "string") return content;
+    if (Array.isArray(content)) {
+      const textPart = content.find((c: any) => c.type === "text");
+      return textPart?.text || "";
+    }
+    return "";
+  };
+
+  const getMessageImage = (content: any): string | null => {
+    if (Array.isArray(content)) {
+      const imgPart = content.find((c: any) => c.type === "image_url");
+      return imgPart?.image_url?.url || null;
+    }
+    return null;
   };
 
   return (
@@ -67,21 +106,11 @@ export const CodeChatInterface = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowHistory(true)}
-            className="gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-2">
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">History</span>
           </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={startNewChat}
-            className="gap-2"
-          >
+          <Button variant="default" size="sm" onClick={startNewChat} className="gap-2">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">New Chat</span>
           </Button>
@@ -98,16 +127,24 @@ export const CodeChatInterface = () => {
               </div>
               <h2 className="text-2xl font-bold mb-2">Welcome to CodeBot</h2>
               <p className="text-muted-foreground max-w-md mb-6">
-                Your AI-powered coding assistant. Ask me anything about code!
+                Your AI-powered coding assistant. Ask me anything about code or upload an image for analysis!
               </p>
-              <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
-                💡 Tip: Type <code className="bg-background px-1.5 py-0.5 rounded font-mono">Identification</code> to access chat history
-              </div>
             </div>
           ) : (
-            messages.map((message, index) => (
-              <ChatMessage key={index} role={message.role} content={message.content} />
-            ))
+            messages.map((message, index) => {
+              const text = getMessageText(message.content);
+              const image = getMessageImage(message.content);
+              return (
+                <div key={index}>
+                  {image && message.role === "user" && (
+                    <div className="flex justify-end px-4 pt-2">
+                      <img src={image} alt="Uploaded" className="max-w-[200px] max-h-[200px] rounded-lg border border-border object-cover" />
+                    </div>
+                  )}
+                  <ChatMessage role={message.role} content={text} />
+                </div>
+              );
+            })
           )}
           
           {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
@@ -123,23 +160,51 @@ export const CodeChatInterface = () => {
         </div>
       </ScrollArea>
 
-
       {/* Input */}
       <div className="border-t border-border p-4 bg-card">
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
+          {imagePreview && (
+            <div className="mb-2 relative inline-block">
+              <img src={imagePreview} alt="Preview" className="h-20 rounded-lg border border-border object-cover" />
+              <button
+                type="button"
+                onClick={() => setImagePreview(null)}
+                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
           <div className="relative flex items-end gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              className="absolute left-2 bottom-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+            >
+              <Image className="h-4 w-4" />
+            </Button>
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask me anything about code..."
-              className="min-h-[56px] max-h-32 resize-none pr-12"
+              placeholder={imagePreview ? "Add a prompt for the image..." : "Ask me anything about code..."}
+              className="min-h-[56px] max-h-32 resize-none pl-12 pr-12"
               disabled={isLoading}
             />
             <Button
               type="submit"
               size="icon"
-              disabled={!input.trim() || isLoading}
+              disabled={(!input.trim() && !imagePreview) || isLoading}
               className="absolute right-2 bottom-2 h-8 w-8"
             >
               <Send className="h-4 w-4" />
