@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 type MessageContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
@@ -26,7 +26,6 @@ export const useCodeChat = () => {
     return [];
   });
   const { toast } = useToast();
-  const abortRef = useRef<AbortController | null>(null);
 
   const saveSession = useCallback((currentMessages: Message[]) => {
     if (currentMessages.length === 0) return;
@@ -53,20 +52,7 @@ export const useCodeChat = () => {
     });
   }, []);
 
-  const stopStreaming = useCallback(() => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-      setIsLoading(false);
-    }
-  }, []);
-
   const streamChat = async (userMessage: string, imageBase64?: string) => {
-    // If currently streaming, abort first
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-
     let content: MessageContent;
     if (imageBase64) {
       content = [
@@ -82,9 +68,6 @@ export const useCodeChat = () => {
     setMessages(newMessages);
     setIsLoading(true);
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-
     let assistantContent = "";
 
     try {
@@ -95,7 +78,6 @@ export const useCodeChat = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ messages: newMessages }),
-        signal: controller.signal,
       });
 
       if (!resp.ok) {
@@ -145,14 +127,6 @@ export const useCodeChat = () => {
       setMessages(finalMessages);
       saveSession(finalMessages);
     } catch (error) {
-      if ((error as Error).name === "AbortError") {
-        // User stopped — keep what we have
-        if (assistantContent) {
-          const partial = [...newMessages, { role: "assistant" as const, content: assistantContent }];
-          setMessages(partial);
-        }
-        return;
-      }
       console.error("Chat error:", error);
       toast({
         title: "Error",
@@ -160,7 +134,6 @@ export const useCodeChat = () => {
         variant: "destructive",
       });
     } finally {
-      abortRef.current = null;
       setIsLoading(false);
     }
   };
@@ -189,7 +162,6 @@ export const useCodeChat = () => {
     isLoading,
     sessions,
     streamChat,
-    stopStreaming,
     startNewChat,
     loadSession,
     deleteSession,

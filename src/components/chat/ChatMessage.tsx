@@ -17,7 +17,7 @@ export const ChatMessage = ({ role, content }: ChatMessageProps) => {
         {isUser ? <User className="h-3.5 w-3.5" /> : <Terminal className="h-3.5 w-3.5" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-xs mb-1 text-muted-foreground">{isUser ? "You" : "CoderAi"}</p>
+        <p className="font-medium text-xs mb-1 text-muted-foreground">{isUser ? "You" : "CodeOrchestrator"}</p>
         <div className="text-sm text-foreground">
           <MessageContent content={content} />
         </div>

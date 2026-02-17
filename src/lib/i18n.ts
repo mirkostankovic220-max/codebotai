@@ -2,8 +2,8 @@ export type Lang = "en" | "bs" | "hr" | "sr";
 
 const translations: Record<Lang, Record<string, string>> = {
   en: {
-    appTitle: "CoderAi",
-    appVersion: "v2.0",
+    appTitle: "CodeOrchestrator",
+    appVersion: "v1.3",
     fastMode: "Fast",
     normalMode: "Normal",
     livePreview: "Live Preview",
@@ -26,8 +26,8 @@ const translations: Record<Lang, Record<string, string>> = {
     codeOutput: "Code Output",
   },
   bs: {
-    appTitle: "CoderAi",
-    appVersion: "v2.0",
+    appTitle: "CodeOrchestrator",
+    appVersion: "v1.3",
     fastMode: "Brzo",
     normalMode: "Normalno",
     livePreview: "Pregled uživo",
@@ -50,8 +50,8 @@ const translations: Record<Lang, Record<string, string>> = {
     codeOutput: "Izlaz koda",
   },
   hr: {
-    appTitle: "CoderAi",
-    appVersion: "v2.0",
+    appTitle: "CodeOrchestrator",
+    appVersion: "v1.3",
     fastMode: "Brzo",
     normalMode: "Normalno",
     livePreview: "Pregled uživo",
@@ -74,8 +74,8 @@ const translations: Record<Lang, Record<string, string>> = {
     codeOutput: "Izlaz koda",
   },
   sr: {
-    appTitle: "CoderAi",
-    appVersion: "v2.0",
+    appTitle: "CodeOrchestrator",
+    appVersion: "v1.3",
     fastMode: "Брзо",
     normalMode: "Нормално",
     livePreview: "Преглед уживо",
