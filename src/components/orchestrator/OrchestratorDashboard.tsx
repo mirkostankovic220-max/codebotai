@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import {
-  Send, Image, History, Zap, Settings2, Plus, X,
-  Loader2, FolderOpen, Globe, Terminal,
+  Send, Image, History, Zap, Plus, X,
+  Loader2, FolderOpen, Globe, Terminal, Square,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,11 +14,17 @@ import { ContextHealthBar } from "./ContextHealthBar";
 import { FileSidebar } from "./FileSidebar";
 import { LivePreviewPanel } from "./LivePreviewPanel";
 import { useCodeChat } from "@/hooks/useCodeChat";
+import { useShutdownListener } from "@/hooks/useShutdownListener";
 import { useToast } from "@/hooks/use-toast";
 import { t, langLabels, type Lang } from "@/lib/i18n";
 import { extractFilesFromMessages, buildPreviewHtml } from "@/lib/fileExtractor";
+import { supabase } from "@/integrations/supabase/client";
 
-export const OrchestratorDashboard = () => {
+interface OrchestratorDashboardProps {
+  onBack: () => void;
+}
+
+export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) => {
   const [input, setInput] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
@@ -29,9 +36,11 @@ export const OrchestratorDashboard = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  useShutdownListener();
+
   const {
     messages, isLoading, sessions,
-    streamChat, startNewChat, loadSession, deleteSession,
+    streamChat, stopStreaming, startNewChat, loadSession, deleteSession,
   } = useCodeChat();
 
   useEffect(() => {
@@ -42,6 +51,26 @@ export const OrchestratorDashboard = () => {
 
   const projectFiles = useMemo(() => extractFilesFromMessages(messages), [messages]);
   const previewHtml = useMemo(() => buildPreviewHtml(projectFiles), [projectFiles]);
+
+  // Save project to DB when we have files
+  useEffect(() => {
+    const saveProject = async () => {
+      if (projectFiles.length === 0 || !previewHtml) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const firstMsg = messages.find(m => m.role === "user");
+      const name = firstMsg
+        ? (typeof firstMsg.content === "string" ? firstMsg.content : "AI Project").slice(0, 60)
+        : "AI Project";
+
+      await supabase.from("projects").upsert(
+        { user_id: user.id, name, html_content: previewHtml },
+        { onConflict: "user_id,name" as any }
+      ).select();
+    };
+    saveProject();
+  }, [previewHtml, projectFiles.length]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,12 +133,13 @@ export const OrchestratorDashboard = () => {
       {/* Header */}
       <header className="flex items-center justify-between px-4 h-12 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div className="flex items-center gap-2">
             <Terminal className="h-5 w-5 text-primary" />
-            <span className="font-bold text-sm tracking-tight">{t(lang, "appTitle")}</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-              {t(lang, "appVersion")}
-            </span>
+            <span className="font-bold text-sm tracking-tight">CoderAi</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary">v2.0</span>
           </div>
 
           {/* Mode Toggle */}
@@ -117,11 +147,7 @@ export const OrchestratorDashboard = () => {
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
               {fastMode ? t(lang, "fastMode") : t(lang, "normalMode")}
             </span>
-            <Switch
-              checked={fastMode}
-              onCheckedChange={setFastMode}
-              className="h-5 w-9"
-            />
+            <Switch checked={fastMode} onCheckedChange={setFastMode} className="h-5 w-9" />
             {fastMode && <Zap className="h-3.5 w-3.5 text-primary" />}
           </div>
 
@@ -132,18 +158,11 @@ export const OrchestratorDashboard = () => {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Language */}
           <Button variant="ghost" size="sm" onClick={cycleLang} className="h-7 gap-1.5 text-xs px-2">
             <Globe className="h-3.5 w-3.5" />
             {langLabels[lang]}
           </Button>
-
-          {/* Files */}
-          <Button
-            variant="ghost" size="sm"
-            onClick={() => setShowFiles(!showFiles)}
-            className="h-7 gap-1.5 text-xs px-2"
-          >
+          <Button variant="ghost" size="sm" onClick={() => setShowFiles(!showFiles)} className="h-7 gap-1.5 text-xs px-2">
             <FolderOpen className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{t(lang, "projectFiles")}</span>
             {projectFiles.length > 0 && (
@@ -152,12 +171,10 @@ export const OrchestratorDashboard = () => {
               </span>
             )}
           </Button>
-
           <Button variant="ghost" size="sm" onClick={() => setShowHistory(true)} className="h-7 gap-1.5 text-xs px-2">
             <History className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{t(lang, "history")}</span>
           </Button>
-
           <Button variant="default" size="sm" onClick={startNewChat} className="h-7 gap-1.5 text-xs px-2">
             <Plus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{t(lang, "newChat")}</span>
@@ -167,7 +184,7 @@ export const OrchestratorDashboard = () => {
 
       {/* Main Content */}
       <div className="flex flex-1 min-h-0">
-        {/* Chat / Code Output */}
+        {/* Chat */}
         <div className="flex-1 flex flex-col min-w-0">
           <ScrollArea ref={scrollRef} className="flex-1">
             <div className="max-w-4xl mx-auto">
@@ -233,13 +250,19 @@ export const OrchestratorDashboard = () => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={imagePreview ? t(lang, "imagePrompt") : t(lang, "sendPlaceholder")}
-                  className="min-h-[48px] max-h-28 resize-none pl-11 pr-11 text-sm"
-                  disabled={isLoading}
+                  className="min-h-[48px] max-h-28 resize-none pl-11 pr-20 text-sm"
+                  disabled={false}
                 />
-                <Button type="submit" size="icon" disabled={(!input.trim() && !imagePreview) || isLoading}
-                  className="absolute right-2 bottom-2 h-7 w-7">
-                  <Send className="h-3.5 w-3.5" />
-                </Button>
+                <div className="absolute right-2 bottom-2 flex gap-1">
+                  {isLoading && (
+                    <Button type="button" size="icon" variant="destructive" className="h-7 w-7" onClick={stopStreaming}>
+                      <Square className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button type="submit" size="icon" disabled={(!input.trim() && !imagePreview) || isLoading} className="h-7 w-7">
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
               <p className="text-[10px] text-muted-foreground mt-1.5 text-center">{t(lang, "enterSend")}</p>
             </form>
