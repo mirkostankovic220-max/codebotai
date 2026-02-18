@@ -271,8 +271,8 @@ export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) =>
         </div>
 
         {/* Live Preview */}
-        {(showPreview || undefined) && (
-          <div className="lg:hidden fixed inset-0 z-50 bg-background flex flex-col">
+        {showPreview && (
+          <div className="fixed inset-0 z-50 bg-background flex flex-col">
             <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card">
               <span className="text-xs font-semibold">Live Preview</span>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowPreview(false)}>
