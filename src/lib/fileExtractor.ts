@@ -21,6 +21,7 @@ export const extractFilesFromMessages = (
       const lang = match[1] || "txt";
       const code = match[2].trim();
       
+      // Try to find filename from a comment in the code or text before the block
       const before = text.slice(Math.max(0, match.index - 200), match.index);
       const fnMatch = filenameHintRegex.exec(code) || filenameHintRegex.exec(before);
       
@@ -47,56 +48,25 @@ const langToExt = (lang: string): string => {
 };
 
 export const buildPreviewHtml = (files: ProjectFile[]): string | null => {
-  if (files.length === 0) return null;
-
   const htmlFile = files.find(f => f.language === "html");
-  const cssFiles = files.filter(f => f.language === "css");
-  const jsFiles = files.filter(f => ["javascript", "js"].includes(f.language));
+  if (!htmlFile) return null;
 
-  // If there's an HTML file, use it as the base
-  if (htmlFile) {
-    let html = htmlFile.content;
-    
-    // Inject CSS files
-    const cssContent = cssFiles.map(f => f.content).join("\n");
-    if (cssContent && !html.includes("<style>")) {
-      html = html.replace("</head>", `<style>${cssContent}</style></head>`);
-    }
-
-    // Inject JS files
-    const jsContent = jsFiles.map(f => f.content).join("\n");
-    if (jsContent && !html.includes("<script>")) {
-      html = html.replace("</body>", `<script>${jsContent}</script></body>`);
-    }
-
-    // Add Tailwind CDN if using tailwind classes
-    if (html.match(/class="[^"]*(?:flex|grid|bg-|text-|p-|m-|w-|h-)/)) {
-      html = html.replace("<head>", '<head><script src="https://cdn.tailwindcss.com"></script>');
-    }
-
-    return html;
-  }
-
-  // No HTML file — build a preview from selected CSS/JS files
-  const cssContent = cssFiles.map(f => f.content).join("\n");
-  const jsContent = jsFiles.map(f => f.content).join("\n");
+  let html = htmlFile.content;
   
-  // If only non-previewable files (e.g. python, json), show code
-  if (!cssContent && !jsContent) {
-    const codePreview = files
-      .map(f => `<div style="margin-bottom:16px"><h3 style="font-family:monospace;color:#888;margin-bottom:4px">${f.name}</h3><pre style="background:#1e1e2e;color:#cdd6f4;padding:12px;border-radius:8px;overflow-x:auto;font-size:13px"><code>${escapeHtml(f.content)}</code></pre></div>`)
-      .join("");
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>body{background:#11111b;padding:20px;font-family:system-ui}</style></head><body>${codePreview}</body></html>`;
+  const cssFile = files.find(f => f.language === "css");
+  if (cssFile && !html.includes("<style>")) {
+    html = html.replace("</head>", `<style>${cssFile.content}</style></head>`);
   }
 
-  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">`;
-  if (cssContent) html += `<style>${cssContent}</style>`;
-  html += `</head><body>`;
-  if (jsContent) html += `<script>${jsContent}</script>`;
-  html += `</body></html>`;
+  const jsFile = files.find(f => ["javascript", "js"].includes(f.language));
+  if (jsFile && !html.includes("<script>")) {
+    html = html.replace("</body>", `<script>${jsFile.content}</script></body>`);
+  }
+
+  // Add Tailwind CDN if using tailwind classes
+  if (html.match(/class="[^"]*(?:flex|grid|bg-|text-|p-|m-|w-|h-)/)) {
+    html = html.replace("<head>", '<head><script src="https://cdn.tailwindcss.com"></script>');
+  }
 
   return html;
 };
-
-const escapeHtml = (str: string) =>
-  str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
