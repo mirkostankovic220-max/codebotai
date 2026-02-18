@@ -281,6 +281,8 @@ export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) =>
             selectedFile={selectedFile}
             onSelectFile={setSelectedFile}
             onClose={() => setShowFiles(false)}
+            onLivePreview={() => setShowFiles(false)}
+            hasPreview={!!previewHtml}
             lang={lang}
           />
         )}
