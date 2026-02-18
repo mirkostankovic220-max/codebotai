@@ -28,6 +28,7 @@ export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) =>
   const [input, setInput] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [fastMode, setFastMode] = useState(false);
   const [lang, setLang] = useState<Lang>("en");
@@ -270,6 +271,19 @@ export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) =>
         </div>
 
         {/* Live Preview */}
+        {(showPreview || undefined) && (
+          <div className="lg:hidden fixed inset-0 z-50 bg-background flex flex-col">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card">
+              <span className="text-xs font-semibold">Live Preview</span>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowPreview(false)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="flex-1">
+              <LivePreviewPanel html={previewHtml} lang={lang} />
+            </div>
+          </div>
+        )}
         <div className="hidden lg:block w-[45%] shrink-0">
           <LivePreviewPanel html={previewHtml} lang={lang} />
         </div>
@@ -281,7 +295,7 @@ export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) =>
             selectedFile={selectedFile}
             onSelectFile={setSelectedFile}
             onClose={() => setShowFiles(false)}
-            onLivePreview={() => setShowFiles(false)}
+            onLivePreview={() => { setShowFiles(false); setShowPreview(true); }}
             hasPreview={!!previewHtml}
             lang={lang}
           />
