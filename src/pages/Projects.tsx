@@ -150,9 +150,6 @@ const Projects = ({ onOpenChat }: ProjectsProps) => {
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-sm font-semibold truncate flex-1">{project.name}</h3>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPreviewProject(project)}>
-                          <Eye className="h-3 w-3" />
-                        </Button>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteProject(project.id)}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button>
@@ -171,6 +168,14 @@ const Projects = ({ onOpenChat }: ProjectsProps) => {
                         />
                       </div>
                     )}
+                    <Button
+                      size="sm"
+                      className="mt-2 w-full gap-1.5 text-xs"
+                      onClick={() => setPreviewProject(project)}
+                      disabled={!project.html_content}
+                    >
+                      <Eye className="h-3 w-3" /> Run Preview
+                    </Button>
                   </div>
                 ))
               )}
