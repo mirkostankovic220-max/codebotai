@@ -1,4 +1,4 @@
-import { FileCode2, Download, X } from "lucide-react";
+import { FileCode2, Download, X, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { t, type Lang } from "@/lib/i18n";
@@ -10,10 +10,12 @@ interface FileSidebarProps {
   selectedFile: string | null;
   onSelectFile: (name: string) => void;
   onClose: () => void;
+  onLivePreview?: () => void;
+  hasPreview?: boolean;
   lang: Lang;
 }
 
-export const FileSidebar = ({ files, selectedFile, onSelectFile, onClose, lang }: FileSidebarProps) => {
+export const FileSidebar = ({ files, selectedFile, onSelectFile, onClose, onLivePreview, hasPreview, lang }: FileSidebarProps) => {
   const handleDownloadZip = async () => {
     const zip = new JSZip();
     for (const file of files) {
@@ -72,7 +74,19 @@ export const FileSidebar = ({ files, selectedFile, onSelectFile, onClose, lang }
       </ScrollArea>
 
       {files.length > 0 && (
-        <div className="p-2 border-t border-border">
+        <div className="p-2 border-t border-border space-y-1.5">
+          {onLivePreview && (
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full gap-2 text-xs h-8"
+              onClick={onLivePreview}
+              disabled={!hasPreview}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Live Preview
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
