@@ -17,7 +17,7 @@ import { useCodeChat } from "@/hooks/useCodeChat";
 import { useShutdownListener } from "@/hooks/useShutdownListener";
 import { useToast } from "@/hooks/use-toast";
 import { t, langLabels, type Lang } from "@/lib/i18n";
-import { extractFilesFromMessages, buildPreviewHtml } from "@/lib/fileExtractor";
+import { extractFilesFromMessages, buildPreviewHtml, type ProjectFile } from "@/lib/fileExtractor";
 import { supabase } from "@/integrations/supabase/client";
 
 interface OrchestratorDashboardProps {
@@ -33,6 +33,7 @@ export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) =>
   const [fastMode, setFastMode] = useState(false);
   const [lang, setLang] = useState<Lang>("en");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<ProjectFile[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -280,7 +281,7 @@ export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) =>
               </Button>
             </div>
             <div className="flex-1">
-              <LivePreviewPanel html={previewHtml} lang={lang} />
+              <LivePreviewPanel html={previewFiles.length > 0 ? buildPreviewHtml(previewFiles) : previewHtml} lang={lang} />
             </div>
           </div>
         )}
@@ -295,8 +296,11 @@ export const OrchestratorDashboard = ({ onBack }: OrchestratorDashboardProps) =>
             selectedFile={selectedFile}
             onSelectFile={setSelectedFile}
             onClose={() => setShowFiles(false)}
-            onLivePreview={() => { setShowFiles(false); setShowPreview(true); }}
-            hasPreview={!!previewHtml}
+            onLivePreview={(selected) => {
+              setPreviewFiles(selected);
+              setShowFiles(false);
+              setShowPreview(true);
+            }}
             lang={lang}
           />
         )}
