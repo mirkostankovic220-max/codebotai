@@ -1,7 +1,7 @@
 import { Monitor, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { t, type Lang } from "@/lib/i18n";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 
 interface LivePreviewPanelProps {
   html: string | null;
@@ -9,19 +9,7 @@ interface LivePreviewPanelProps {
 }
 
 export const LivePreviewPanel = ({ html, lang }: LivePreviewPanelProps) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [key, setKey] = useState(0);
-
-  useEffect(() => {
-    if (iframeRef.current && html) {
-      const doc = iframeRef.current.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(html);
-        doc.close();
-      }
-    }
-  }, [html, key]);
 
   return (
     <div className="flex flex-col h-full bg-card border-l border-border">
@@ -46,10 +34,10 @@ export const LivePreviewPanel = ({ html, lang }: LivePreviewPanelProps) => {
       <div className="flex-1 bg-background">
         {html ? (
           <iframe
-            ref={iframeRef}
             key={key}
+            srcDoc={html}
             className="w-full h-full border-0"
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts"
             title="Live Preview"
           />
         ) : (
