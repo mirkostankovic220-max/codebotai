@@ -37,7 +37,7 @@ export const LivePreviewPanel = ({ html, lang }: LivePreviewPanelProps) => {
             key={key}
             srcDoc={html}
             className="w-full h-full border-0"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin allow-modals"
             title="Live Preview"
           />
         ) : (
