@@ -53,84 +53,60 @@ You specialize in:
 
 Always format code properly for easy copying.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
+    // Try models in order until one succeeds
+    const models = [
+      "google/gemini-3-flash-preview",
+      "google/gemini-2.5-flash",
+      "google/gemini-2.5-flash-lite",
+      "openai/gpt-5-nano",
+    ];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+    let lastError = "";
 
-      // On rate limit, auto-retry once after a delay
-      if (response.status === 429) {
-        await new Promise(r => setTimeout(r, 3000));
-        const retry = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...messages,
-            ],
-            stream: true,
-          }),
-        });
-        if (retry.ok) {
-          return new Response(retry.body, {
-            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    for (const model of models) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+
+          const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: "system", content: systemPrompt },
+                ...messages,
+              ],
+              stream: true,
+            }),
           });
+
+          if (response.ok) {
+            return new Response(response.body, {
+              headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+            });
+          }
+
+          lastError = await response.text();
+          console.error(`Model ${model} attempt ${attempt} failed:`, response.status, lastError);
+
+          // On 402/429, skip retries for this model and try next
+          if (response.status === 402 || response.status === 429) break;
+        } catch (err) {
+          console.error(`Model ${model} attempt ${attempt} threw:`, err);
+          lastError = String(err);
         }
       }
-
-      // On 402, switch to a cheaper/free model and retry
-      if (response.status === 402) {
-        console.log("Credits exhausted, retrying with lighter model...");
-        const retry = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...messages,
-            ],
-            stream: true,
-          }),
-        });
-        if (retry.ok) {
-          return new Response(retry.body, {
-            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-          });
-        }
-        // If even the fallback fails, return the error
-        const retryError = await retry.text();
-        console.error("Fallback model also failed:", retry.status, retryError);
-      }
-
-      return new Response(JSON.stringify({ error: "AI service temporarily unavailable. Please try again in a moment." }), {
-        status: 503,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
+
+    // All models exhausted
+    return new Response(JSON.stringify({ error: "AI service temporarily unavailable. Please try again in a moment." }), {
+      status: 503,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
