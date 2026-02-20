@@ -70,9 +70,12 @@ Always format code properly for easy copying.`;
     });
 
     if (!response.ok) {
-      // Auto-retry on rate limit
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
+
+      // On rate limit, auto-retry once after a delay
       if (response.status === 429) {
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 3000));
         const retry = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -94,10 +97,37 @@ Always format code properly for easy copying.`;
           });
         }
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "AI service temporarily busy. Please try again." }), {
-        status: 500,
+
+      // On 402, switch to a cheaper/free model and retry
+      if (response.status === 402) {
+        console.log("Credits exhausted, retrying with lighter model...");
+        const retry = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...messages,
+            ],
+            stream: true,
+          }),
+        });
+        if (retry.ok) {
+          return new Response(retry.body, {
+            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+          });
+        }
+        // If even the fallback fails, return the error
+        const retryError = await retry.text();
+        console.error("Fallback model also failed:", retry.status, retryError);
+      }
+
+      return new Response(JSON.stringify({ error: "AI service temporarily unavailable. Please try again in a moment." }), {
+        status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
