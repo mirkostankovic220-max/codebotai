@@ -28,8 +28,6 @@ export const useCodeChat = () => {
   const { toast } = useToast();
   const abortRef = useRef<AbortController | null>(null);
 
-  const currentSessionId = useRef<string | null>(null);
-
   const saveSession = useCallback((currentMessages: Message[]) => {
     if (currentMessages.length === 0) return;
     
@@ -41,25 +39,15 @@ export const useCodeChat = () => {
     ) : "New Chat";
     const title = contentText.slice(0, 50) + (contentText.length > 50 ? "..." : "");
     
+    const newSession: ChatSession = {
+      id: crypto.randomUUID(),
+      title,
+      timestamp: new Date(),
+      messages: currentMessages,
+    };
+    
     setSessions(prev => {
-      let updated;
-      if (currentSessionId.current) {
-        // Update existing session
-        updated = prev.map(s => s.id === currentSessionId.current 
-          ? { ...s, messages: currentMessages, title, timestamp: new Date() } 
-          : s
-        );
-        // If session wasn't found (deleted), create new
-        if (!updated.find(s => s.id === currentSessionId.current)) {
-          const newSession: ChatSession = { id: currentSessionId.current, title, timestamp: new Date(), messages: currentMessages };
-          updated = [newSession, ...prev].slice(0, 50);
-        }
-      } else {
-        const id = crypto.randomUUID();
-        currentSessionId.current = id;
-        const newSession: ChatSession = { id, title, timestamp: new Date(), messages: currentMessages };
-        updated = [newSession, ...prev].slice(0, 50);
-      }
+      const updated = [newSession, ...prev].slice(0, 50);
       localStorage.setItem("code-chat-sessions", JSON.stringify(updated));
       return updated;
     });
@@ -181,12 +169,10 @@ export const useCodeChat = () => {
     if (messages.length > 0) {
       saveSession(messages);
     }
-    currentSessionId.current = null;
     setMessages([]);
   }, [messages, saveSession]);
 
   const loadSession = useCallback((session: ChatSession) => {
-    currentSessionId.current = session.id;
     setMessages(session.messages);
   }, []);
 
