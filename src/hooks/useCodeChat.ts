@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 type MessageContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
@@ -13,22 +13,44 @@ interface ChatSession {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/code-chat`;
+const STORAGE_KEY = "code-chat-sessions";
+
+const readStoredSessions = (): ChatSession[] => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return [];
+
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.map((session: any) => ({
+      ...session,
+      timestamp: new Date(session.timestamp),
+      messages: Array.isArray(session.messages) ? session.messages : [],
+    }));
+  } catch (error) {
+    console.warn("Failed to restore chat sessions", error);
+    localStorage.removeItem(STORAGE_KEY);
+    return [];
+  }
+};
 
 export const useCodeChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [sessions, setSessions] = useState<ChatSession[]>(() => {
-    const saved = localStorage.getItem("code-chat-sessions");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.map((s: any) => ({ ...s, timestamp: new Date(s.timestamp) }));
-    }
-    return [];
-  });
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const { toast } = useToast();
   const abortRef = useRef<AbortController | null>(null);
 
-  const saveSession = useCallback((currentMessages: Message[]) => {
+  useEffect(() => {
+    setSessions(readStoredSessions());
+  }, []);
+
+  const persistSessions = (nextSessions: ChatSession[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSessions));
+  };
+
+  const saveSession = (currentMessages: Message[]) => {
     if (currentMessages.length === 0) return;
     
     const firstUserMessage = currentMessages.find(m => m.role === "user");
@@ -48,18 +70,18 @@ export const useCodeChat = () => {
     
     setSessions(prev => {
       const updated = [newSession, ...prev].slice(0, 50);
-      localStorage.setItem("code-chat-sessions", JSON.stringify(updated));
+      persistSessions(updated);
       return updated;
     });
-  }, []);
+  };
 
-  const stopStreaming = useCallback(() => {
+  const stopStreaming = () => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
       setIsLoading(false);
     }
-  }, []);
+  };
 
   const streamChat = async (userMessage: string, imageBase64?: string) => {
     // If currently streaming, abort first
@@ -165,24 +187,24 @@ export const useCodeChat = () => {
     }
   };
 
-  const startNewChat = useCallback(() => {
+  const startNewChat = () => {
     if (messages.length > 0) {
       saveSession(messages);
     }
     setMessages([]);
-  }, [messages, saveSession]);
+  };
 
-  const loadSession = useCallback((session: ChatSession) => {
+  const loadSession = (session: ChatSession) => {
     setMessages(session.messages);
-  }, []);
+  };
 
-  const deleteSession = useCallback((id: string) => {
+  const deleteSession = (id: string) => {
     setSessions(prev => {
       const updated = prev.filter(s => s.id !== id);
-      localStorage.setItem("code-chat-sessions", JSON.stringify(updated));
+      persistSessions(updated);
       return updated;
     });
-  }, []);
+  };
 
   return {
     messages,
