@@ -57,10 +57,11 @@ Always format code properly for easy copying.`;
     // Free models get rate limited often — rotate through fallbacks.
     const MODELS = [
       "qwen/qwen3.8-27b:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "google/gemma-3-27b-it:free",
-      "mistralai/mistral-small-3.2-24b-instruct:free",
-      "deepseek/deepseek-chat-v3.1:free",
+      "z-ai/glm-5.2:free",
+      "google/gemma-4-31b-it:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "poolside/laguna-s-2.1:free",
+      "cohere/north-mini-code:free",
     ];
 
     let response: Response | null = null;
