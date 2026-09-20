@@ -63,7 +63,7 @@ Always format code properly for easy copying.`;
         "X-Title": "CoderAi v2.0",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "qwen/qwen3.8-27b:free",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
