@@ -54,39 +54,64 @@ You specialize in:
 
 Always format code properly for easy copying.`;
 
-    const response = await fetch(API_HOST, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://codebotai.lovable.app",
-        "X-Title": "CoderAi v2.0",
-      },
-      body: JSON.stringify({
-        model: "qwen/qwen3.8-27b:free",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
+    // Free models get rate limited often — rotate through fallbacks.
+    const MODELS = [
+      "qwen/qwen3.8-27b:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "google/gemma-3-27b-it:free",
+      "mistralai/mistral-small-3.2-24b-instruct:free",
+      "deepseek/deepseek-chat-v3.1:free",
+    ];
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    let response: Response | null = null;
+    let lastStatus = 0;
+    let lastError = "";
+
+    for (const model of MODELS) {
+      const attempt = await fetch(API_HOST, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://codebotai.lovable.app",
+          "X-Title": "CoderAi v2.0",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages,
+          ],
+          stream: true,
+        }),
+      });
+
+      if (attempt.ok) {
+        response = attempt;
+        break;
       }
-      if (response.status === 402) {
+
+      lastStatus = attempt.status;
+      lastError = await attempt.text();
+      console.error(`Model ${model} failed:`, attempt.status, lastError);
+
+      // Only rotate on capacity/limit/availability errors
+      if (![402, 404, 429, 500, 502, 503].includes(attempt.status)) break;
+    }
+
+    if (!response) {
+      if (lastStatus === 429) {
+        return new Response(
+          JSON.stringify({ error: "All free models are busy right now. Please try again in a minute." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (lastStatus === 402) {
         return new Response(JSON.stringify({ error: "Payment required. Please add credits to continue." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
       return new Response(JSON.stringify({ error: "AI service error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
